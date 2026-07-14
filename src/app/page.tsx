@@ -1,64 +1,134 @@
+import type { Metadata } from "next";
 import Image from "next/image";
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { resolveTheme, THEME_TOKENS } from "@/lib/theme";
+import { resolveTicker } from "@/lib/homepage";
+import { baseSiteMetadata } from "@/lib/seo";
+import { BentoGrid } from "@/components/public/BentoGrid";
+import { Icon } from "@/components/public/Icon";
 
-export default function Home() {
+type SocialLink = { label: string; url: string; icon?: string };
+
+async function getData() {
+  const [profile, tiles] = await Promise.all([
+    prisma.profile.findFirst(),
+    prisma.bentoGridItem.findMany({
+      where: { isActive: true },
+      orderBy: { order: "asc" },
+    }),
+  ]);
+  return { profile, tiles };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const base = await baseSiteMetadata();
+  return { ...base, alternates: { canonical: "/" } };
+}
+
+// Public page is revalidated on admin edits via revalidatePath('/').
+export const revalidate = 3600;
+
+export default async function Home() {
+  const { profile, tiles } = await getData();
+  const theme = resolveTheme(profile?.theme);
+  const social = (profile?.socialLinks as SocialLink[] | null) ?? [];
+
+  // Inject the admin-adjustable palette as CSS custom properties.
+  const themeVars = Object.fromEntries(
+    THEME_TOKENS.map((t) => [`--sk-${t.key}`, theme[t.key]]),
+  ) as React.CSSProperties;
+
+  const ticker = resolveTicker(profile?.ticker);
+  const tickerItems = ticker.items.length > 0 ? ticker.items : [profile?.tagline || "New music out now"];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="sk-page" style={themeVars}>
+      <div className="sk-grain" aria-hidden="true" />
+      <div className="sk-scan" aria-hidden="true" />
+
+      <main className="sk-wrap">
+        <div className="sk-top">
+          <span>{profile?.topLeft || "Self-hosted"}</span>
+          <span>{profile?.topRight || "Transmission 001"}</span>
+        </div>
+
+        <section className="sk-hero">
+          {profile?.logoUrl ? (
+            <div className="sk-logo-stage">
+              <div className="sk-logo-inner">
+                <Image
+                  src={profile.logoUrl}
+                  alt={profile.artistName}
+                  width={1440}
+                  height={899}
+                  priority
+                  sizes="(max-width: 1000px) 96vw, 1000px"
+                  style={{ width: "100%", height: "auto" }}
+                />
+              </div>
+            </div>
+          ) : (
+            <h1 style={{ fontFamily: "var(--sk-display)", fontSize: "clamp(48px,12vw,120px)" }}>
+              {profile?.artistName ?? "Sketchy"}
+            </h1>
+          )}
+
+          {profile?.heroKicker && <p className="sk-kick">{profile.heroKicker}</p>}
+          {profile?.tagline && <h2 className="sk-tagline">{profile.tagline}</h2>}
+          {profile?.bio && <p className="sk-subline">{profile.bio}</p>}
+        </section>
+
+        {ticker.enabled && (
+          <div className="sk-ticker" aria-hidden="true">
+            <div style={{ animationDuration: `${ticker.speedSec}s` }}>
+              {[0, 1].map((rep) =>
+                tickerItems.map((item, i) => (
+                  <span key={`${rep}-${i}`}>
+                    <b>{item}</b>
+                    <i style={{ paddingLeft: 22 }}>✳</i>
+                  </span>
+                )),
+              )}
+            </div>
+          </div>
+        )}
+
+        {tiles.length > 0 ? (
+          <BentoGrid tiles={tiles} />
+        ) : (
+          <p className="sk-subline" style={{ textAlign: "center", margin: "40px auto" }}>
+            No tiles yet. Add some in the admin dashboard.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        )}
+
+        {social.length > 0 && (
+          <div className="sk-social" aria-label="Social links">
+            <span className="sk-lbl">Elsewhere /</span>
+            {social.map((s) => (
+              <a
+                key={s.url}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="sk-chip"
+              >
+                {s.icon && <Icon name={s.icon} />} {s.label}
+              </a>
+            ))}
+          </div>
+        )}
+
+        <footer className="sk-footer">
+          <span>
+            © {new Date().getFullYear()} {profile?.artistName ?? "Sketchy"}
+          </span>
+          <nav className="sk-legal-links" aria-label="Legal">
+            <Link href="/impressum">Impressum</Link>
+            <Link href="/datenschutz">Datenschutz</Link>
+            <Link href="/agb">AGB</Link>
+          </nav>
+        </footer>
       </main>
     </div>
   );

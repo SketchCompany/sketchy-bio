@@ -1,0 +1,86 @@
+// Sketchy — self-hosted link-in-bio
+// Postgres + Prisma. Binary engine (Prisma 6) works on Raspberry Pi arm64.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// Singleton global settings for the public page.
+model Profile {
+  id              String   @id @default(cuid())
+  artistName      String   @default("Sketchy")
+  bio             String   @default("")
+  tagline         String   @default("")
+  heroKicker      String   @default("Producer · Artist")
+  avatarUrl       String?
+  logoUrl         String?
+  backgroundStyle String   @default("black")
+  // Small labels in the very top bar of the public page.
+  topLeft         String   @default("Self-hosted")
+  topRight        String   @default("Transmission 001")
+  // Scrolling "live" bar: { enabled, speedSec, items: string[] }. Defaults resolved in code.
+  ticker          Json     @default("{}")
+  // Backend-adjustable colour tokens (see lib/theme.ts for the schema/defaults).
+  theme           Json     @default("{}")
+  // Array of { label, url, icon } for the "Elsewhere" chip row.
+  socialLinks     Json     @default("[]")
+  ogImageUrl      String?
+  updatedAt       DateTime @updatedAt @default(now())
+}
+
+enum TileType {
+  LINK
+  TEXT
+  HEADER
+  IMAGE
+  VIDEO
+  SPOTIFY
+  APPLE_MUSIC
+  SOUNDCLOUD
+  YOUTUBE
+  EMBED
+}
+
+model BentoGridItem {
+  id         String   @id @default(cuid())
+  title      String   @default("")
+  type       TileType @default(LINK)
+  url        String? // external link or embed source
+  content    String? // free text (TEXT/HEADER) or caption
+  mediaUrl   String? // uploaded file path or parsed embed src
+  tag        String? // custom uppercase label; falls back to the auto kicker
+  style      Json     @default("{}") // { size, align, color } for TEXT/HEADER
+  // Grid position/size (matches react-grid-layout in the admin editor).
+  x          Int      @default(0)
+  y          Int      @default(0)
+  w          Int      @default(1)
+  h          Int      @default(1)
+  isActive   Boolean  @default(true)
+  order      Int      @default(0)
+  clickCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive, order])
+}
+
+// Editable legal pages: impressum, datenschutz, agb.
+model LegalPage {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt @default(now())
+}
