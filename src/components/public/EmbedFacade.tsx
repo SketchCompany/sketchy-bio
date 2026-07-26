@@ -7,46 +7,23 @@ import { Icon } from "./Icon";
  * Renders a lightweight placeholder and only mounts the real <iframe> once the
  * tile scrolls near the viewport (or the visitor clicks). This keeps embed
  * scripts off the main thread at load — important on a Raspberry Pi.
- *
- * With `autoPlay`, the scroll trigger is skipped and the iframe waits for the
- * first interaction anywhere on the page instead. Browsers block sound that
- * starts without a user gesture, so mounting during one is what actually lets
- * an `auto_play=true` embed play. Mounting on scroll would spend the embed's
- * one chance before any gesture exists.
  */
 export function EmbedFacade({
   src,
   title,
   kicker,
   icon,
-  autoPlay = false,
 }: {
   src: string;
   title: string;
   kicker: string;
   icon: string;
-  autoPlay?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [show, setShow] = useState(false);
 
   useEffect(() => {
     if (show) return;
-
-    if (autoPlay) {
-      const events = ["pointerdown", "touchstart", "keydown"] as const;
-      const onGesture = () => {
-        setShow(true);
-        for (const e of events) document.removeEventListener(e, onGesture, true);
-      };
-      for (const e of events) {
-        document.addEventListener(e, onGesture, { capture: true, passive: true });
-      }
-      return () => {
-        for (const e of events) document.removeEventListener(e, onGesture, true);
-      };
-    }
-
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
@@ -60,7 +37,7 @@ export function EmbedFacade({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [show, autoPlay]);
+  }, [show]);
 
   return (
     <div ref={ref} style={{ position: "absolute", inset: 0 }}>
