@@ -14,7 +14,7 @@ module.exports = {
       max_memory_restart: "400M",
       env: {
         NODE_ENV: "production",
-        PORT: 3000,
+        PORT: 3008,
         HOSTNAME: "127.0.0.1",
       },
       // .env is loaded by the app via Prisma/Auth; PM2 also reads it if present.
