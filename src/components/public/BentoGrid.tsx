@@ -164,9 +164,18 @@ function EmbedTile({ t }: { t: BentoGridItem }) {
     // Bad/missing embed url → behave like a normal link.
     return <LinkTile t={t} />;
   }
+  // The embed url itself carries the intent, so autoplay stays editable in the
+  // admin without a schema change.
+  const wantsAutoPlay = /[?&]auto_play=true/.test(src);
   return (
     <div className="sk-tile" style={{ ...spanStyle(t), padding: 0 }}>
-      <EmbedFacade src={src} title={t.title} kicker={t.tag || `${meta.label} · ${t.title}`} icon={meta.icon} />
+      <EmbedFacade
+        src={src}
+        title={t.title}
+        kicker={t.tag || `${meta.label} · ${t.title}`}
+        icon={meta.icon}
+        autoPlay={wantsAutoPlay}
+      />
     </div>
   );
 }
